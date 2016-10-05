@@ -3,12 +3,11 @@ function [ rwin ] = window( vector, winsize )
 %   Detailed explanation goes here
     vector = vector(:);
     vecsize = length(vector);
-    %buffer = zeros(winsize, vecsize);
     buffer = NaN(winsize, vecsize);
     buffer(1, :) = vector;
     for i = 1 : winsize
-        tmp = vector(i : end);
-        buffer(i, 1 : length(tmp)) = tmp;
+        tmp = vector(1 : end - i + 1);
+        buffer(i, i : end) = tmp;
     end
     rwin = buffer;
 end
