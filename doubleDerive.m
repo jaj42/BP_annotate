@@ -1,4 +1,4 @@
-function [ waveformDDPlus ] = doubleDerive( waveform, fs )
+function [ waveformDDPlus, fs ] = doubleDerive( waveform, fs )
 %[ waveformDD ] = doubleDerive( waveform, fs )
 %
 %Returns the second derivative of the waveform if the first derivative is
@@ -20,5 +20,6 @@ function [ waveformDDPlus ] = doubleDerive( waveform, fs )
     waveformDDPlus = zeros( size(waveformDD) );
     waveformDDPlus(waveformD > 0) = waveformDD(waveformD > 0);
     waveformDDPlus = waveformDDPlus .^ 2;
+    waveformDDPlus(1: 2) = 0;
 end
 
