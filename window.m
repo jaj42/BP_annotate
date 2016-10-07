@@ -4,10 +4,11 @@ function [ rwin ] = window( vector, winsize )
     vector = vector(:);
     vecsize = length(vector);
     buffer = NaN(winsize, vecsize);
-    buffer(1, :) = vector;
+
     for i = 1 : winsize
         tmp = vector(1 : end - i + 1);
         buffer(i, i : end) = tmp;
     end
+    
     rwin = buffer;
 end

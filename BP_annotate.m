@@ -9,17 +9,18 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, v
     
     [ waveformDDPlus, newFs ] = doubleDerive( waveform, fs );
     
-    threswinsize = floor(newFs * 3);
     integwinsize = floor(newFs / 4);
+    threswinsize = floor(newFs * 3);
 
     integwindow = window(waveformDDPlus, integwinsize);
     integral = winsum(integwindow);
+    % Center the integral
+    integral = circshift(integral, -floor(integwinsize / 2), 2);
 
     threswindow = window(integral, threswinsize);
     threshold = winquant(threswindow, .7);
     
     zois = integral > threshold;
-
     
     if verbose
         time = (0: length(waveform) - 1) ./ fs;
