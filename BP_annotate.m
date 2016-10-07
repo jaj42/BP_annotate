@@ -1,27 +1,26 @@
 function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, verbose )
-%[ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, f, verboses )
-%
-%
-%%
-[waveform, newFs] = BP_downsample(waveform, fs);
-[ waveformDDPlus ] = doubleDerive( waveform, fs );
+    notchIndex = 0;
 
-integwinsize = floor(newFs / 4);
-threswinsize = floor(newFs * 3);
+    [waveform, newFs] = BP_downsample(waveform, fs);
+    waveformDDPlus = doubleDerive(waveform, fs );
 
-integralWindow = window(waveformDDPlus, integwinsize);
-BP_integral = winsum(integralWindow);
-% Center the integral
-BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
+    integwinsize = floor(newFs / 4);
+    threswinsize = floor(newFs * 3);
 
-thresholdWindow = window(BP_integral, threswinsize);
-threshold = winquant(thresholdWindow, .7);
+    % Moving sum to increase SNR
+    integralWindow = rollingWindow(waveformDDPlus, integwinsize);
+    BP_integral = winsum(integralWindow);
+    % Center the integral
+    BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
 
-[ zoneOfInterest ] = getZoneOfInterest( BP_integral, threshold );
-footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
+    thresholdWindow = rollingWindow(BP_integral, threswinsize);
+    threshold = winquant(thresholdWindow, .7);
 
-Down = 0;
-systolicIndex = FixIndex(footIndex + integwinsize, waveform, Down, integwinsize);
+    [ zoneOfInterest ] = getZoneOfInterest( BP_integral, threshold );
+    footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
+
+    Down = 0;
+    systolicIndex = FixIndex(footIndex + integwinsize, waveform, Down, integwinsize);
 
     if verbose
         Colors = get(gca, 'ColorOrder');
