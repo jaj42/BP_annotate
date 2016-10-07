@@ -1,6 +1,5 @@
-function [ rwin ] = window( vector, winsize )
-%WINDOW Summary of this function goes here
-%   Detailed explanation goes here
+function [ rwin ] = rollingWindow( vector, winsize )
+%ROLLINGWINDOW Return a rolling window with aperture set to winsize
     vector = vector(:);
     vecsize = length(vector);
     buffer = NaN(winsize, vecsize);

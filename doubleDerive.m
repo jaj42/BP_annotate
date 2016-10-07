@@ -1,11 +1,9 @@
-function [ waveformDDPlus, fs ] = doubleDerive( waveform, fs )
+function [ waveformDDPlus ] = doubleDerive( waveform, fs )
 %[ waveformDD ] = doubleDerive( waveform, fs )
 %
 %Returns the second derivative of the waveform if the first derivative is
 %positive; otherwise returns
 %%
-    waveform = waveform(:);%Column
-    [waveform, fs] = BP_downsample(waveform, fs);
     %Perform the first derivative
     waveformD = diff(waveform);
     waveformD = waveformD .* fs;
@@ -22,4 +20,3 @@ function [ waveformDDPlus, fs ] = doubleDerive( waveform, fs )
     waveformDDPlus = waveformDDPlus .^ 2;
     waveformDDPlus(1: 2) = 0;
 end
-
