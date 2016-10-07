@@ -21,6 +21,7 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, v
 
     Down = 0;
     systolicIndex = FixIndex(footIndex + integwinsize, waveform, Down, integwinsize);
+    [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, fs, footIndex, systolicIndex );  
 
     if verbose
         Colors = get(gca, 'ColorOrder');
@@ -31,7 +32,10 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, v
         plot(time, waveform);
         plot(time(footIndex), waveform(footIndex),'<','color', Colors(4,:), 'markerfacecolor',Colors(4,:))
         plot(time(systolicIndex), waveform(systolicIndex),'^','color', Colors(5,:), 'markerfacecolor',Colors(5,:))
-        legend({'Waveform','Foot','Systole'},'box','off')
+        plot(time(notchIndex), waveform(notchIndex),'^','color', Colors(6,:), 'markerfacecolor',Colors(6,:))
+        plot(time(dicroticIndex), waveform(dicroticIndex),'^','color', Colors(7,:), 'markerfacecolor',Colors(7,:))
+        legend({'Waveform','Foot','Systole', 'Notch', 'Dicrotic Peak'},'box','off')
+
 
         axs(2) = subplot(4, 1, 2);
         hold on;
