@@ -14,13 +14,13 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, v
     integrWinSize = floor(newFs / 4);
     threshWinSize = floor(newFs * 3);
 
-    % Calculate a rolling sum of the 
-    integwindow = window(waveformDDPlus, integrWinSize);
+    % Calculate a rolling sum of the 2nd derivative
+    integwindow = rollingWindow(waveformDDPlus, integrWinSize);
     integral = winsum(integwindow);
     % Center the integral
     integral = circshift(integral, -floor(integrWinSize / 2), 2);
 
-    threswindow = window(integral, threshWinSize);
+    threswindow = rollingWindow(integral, threshWinSize);
     threshold = winquant(threswindow, .7);
     
     zois = integral > threshold;

@@ -1,8 +1,6 @@
 function [ newWaveform, newFs ] = BP_downsample( waveform, fs )
-%[ waveform, fs ] = BP_downsample( waveform, fs )
-%
-%Downsamples to 200Hz if fs is higher
-%%
+% Downsamples to 200Hz if fs is higher
+
 if fs > 200
     oldTime = (0: length(waveform) -1) ./ fs;
     newTime = (oldTime(1): 1/200: oldTime(end));
@@ -22,4 +20,3 @@ else
 end
 
 end
-

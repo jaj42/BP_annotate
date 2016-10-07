@@ -20,4 +20,3 @@ function [ waveformDDPlus ] = doubleDerive( waveform, fs )
     waveformDDPlus = waveformDDPlus .^ 2;
     waveformDDPlus(1: 2) = 0;
 end
-
