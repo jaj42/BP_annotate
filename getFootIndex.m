@@ -17,7 +17,7 @@ function [ footIndex ] = getFootIndex( waveformDDPlus, zoneOfInterest )
     footIndex = zeros( size(BP_start) );
     for i = 1 : length(BP_start)
         [~, footIndex(i)] = max(waveformDDPlus(BP_start(i) : BP_stop(i)));
-        footIndex(i) = footIndex(i) + BP_start - 1;
+        footIndex(i) = footIndex(i) + BP_start(i) - 1;
     end
 
 

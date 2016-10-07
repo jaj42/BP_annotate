@@ -22,12 +22,16 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, v
     
     zois = integral > threshold;
     
+    footIndex = getFootIndex( waveformDDPlus, zois );
+
+    
     if verbose
-        time = (0: length(waveform) - 1) ./ fs;
+        time    = (0: length(waveform) - 1) ./ fs;
         newTime = (0: length(waveformDDPlus) - 1) ./ newFs;
         figure
         axs(1) = subplot(4, 1, 1);
         plot(time, waveform);
+
         
         axs(2) = subplot(4, 1, 2);
         plot(newTime, waveformDDPlus);
