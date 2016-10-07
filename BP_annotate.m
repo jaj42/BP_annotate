@@ -1,51 +1,51 @@
 function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, verbose )
-%[ output_args ] = BP_annotate( waveform, fs )
-    %footIndex = 0;
-    systolicIndex = 0;
-    notchIndex = 0;
+%[ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, f, verboses )
+%
+%
+%%
+[waveform, newFs] = BP_downsample(waveform, fs);
+[ waveformDDPlus ] = doubleDerive( waveform, fs );
 
-    waveform = waveform(:); %Column
+integwinsize = floor(newFs / 4);
+threswinsize = floor(newFs * 3);
 
-    % Downsample the input signal to filter noise.
-    [waveformDS, newFs] = BP_downsample(waveform, fs);
+integralWindow = window(waveformDDPlus, integwinsize);
+BP_integral = winsum(integralWindow);
+% Center the integral
+BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
 
-    waveformDDPlus = doubleDerive( waveformDS, fs );
-    
-    integrWinSize = floor(newFs / 4);
-    threshWinSize = floor(newFs * 3);
+thresholdWindow = window(BP_integral, threswinsize);
+threshold = winquant(thresholdWindow, .7);
 
-    % Calculate a rolling sum of the 2nd derivative
-    integwindow = rollingWindow(waveformDDPlus, integrWinSize);
-    integral = winsum(integwindow);
-    % Center the integral
-    integral = circshift(integral, -floor(integrWinSize / 2), 2);
+[ zoneOfInterest ] = getZoneOfInterest( BP_integral, threshold );
+footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
 
-    threswindow = rollingWindow(integral, threshWinSize);
-    threshold = winquant(threswindow, .7);
-    
-    zois = integral > threshold;
-    
-    footIndex = getFootIndex( waveformDDPlus, zois );
+Down = 0;
+systolicIndex = FixIndex(footIndex + integwinsize, waveform, Down, integwinsize);
 
     if verbose
-        time    = (0: length(waveformDS) - 1) ./ newFs;
+        Colors = get(gca, 'ColorOrder');
+        time = (0: length(waveform) - 1) ./ fs;
+        newTime = (0: length(waveformDDPlus) - 1) ./ newFs;
         figure
-        axs(1) = subplot(4, 1, 1);
-        plot(time, waveformDS);
-        
+        axs(1) = subplot(4, 1, 1); hold on;
+        plot(time, waveform);
+        plot(time(footIndex), waveform(footIndex),'<','color', Colors(4,:), 'markerfacecolor',Colors(4,:))
+        plot(time(systolicIndex), waveform(systolicIndex),'^','color', Colors(5,:), 'markerfacecolor',Colors(5,:))
+        legend({'Waveform','Foot','Systole'},'box','off')
+
         axs(2) = subplot(4, 1, 2);
-        plot(time, waveformDDPlus);
-        
-        axs(3) = subplot(4, 1, 3);
-        plot(time, integral);
         hold on;
-        plot(time, threshold);
-        legend('Integral', 'Threshold');
+        plot(newTime, waveformDDPlus./max(waveformDDPlus));
+        plot(newTime, BP_integral./max(BP_integral));
+        plot(newTime, threshold./max(threshold));
+        plot(newTime, zoneOfInterest);
+        legend({'2nd Derivative','Integral', 'Threshold', 'ZOI'}, 'box','off');
+
+        axs(3) = subplot(4, 1, 3);
 
         axs(4) = subplot(4, 1, 4);
-        plot(time, zois);
-        legend('ZOIs');
-        
+
         linkaxes(axs, 'x')
     end
 end
