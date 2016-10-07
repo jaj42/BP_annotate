@@ -1,7 +1,7 @@
-function [FixedIndex] = FixIndex(BrokeIndex, BrokeSCG, Down, minWavelength)
+function [fixedIndex] = FixIndex(BrokeIndex, BrokeSCG, Down, minWavelength)
 %function [FixedIndex] = FixIndex(BrokeIndex, BrokeSCG, Down, minWavelength)
 %%
-    FixedIndex = BrokeIndex;
+    fixedIndex = BrokeIndex;
     for N = 1:length(BrokeIndex)
        if BrokeIndex+2 < length(BrokeSCG)
            OldIndex = BrokeIndex(N);
@@ -26,9 +26,9 @@ function [FixedIndex] = FixIndex(BrokeIndex, BrokeSCG, Down, minWavelength)
                end
            end
            Index = NewIndex;
-           FixedIndex(N) = Index;
+           fixedIndex(N) = Index;
        end
     end
-    FixedIndex( FixedIndex > length(BrokeSCG) ) = [];
-    FixedIndex( FixedIndex < 1 ) = [];
+    fixedIndex( fixedIndex > length(BrokeSCG) ) = [];
+    fixedIndex( fixedIndex < 1 ) = [];
 end
