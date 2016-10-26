@@ -1,10 +1,12 @@
 function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, verbose )
 
 newFs = 200;
-waveform = BP_resample(waveform, fs);
-waveform = BP_Lowpass(waveform);
+origwaveform = waveform;
 
-[ waveformDDPlus, waveformDD ] = doubleDerive(waveform );
+[bpwaveform, time, origtime] = BP_resample(waveform, fs);
+bpwaveform = BP_Lowpass(bpwaveform);
+
+[ waveformDDPlus, waveformDD ] = doubleDerive(bpwaveform );
 
 integwinsize = floor(newFs / 4);
 threswinsize = floor(newFs * 3);
@@ -22,34 +24,27 @@ threshold = winquant(thresholdWindow, .7);
 footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
 
 Down = 0;
-systolicIndex = FixIndex(footIndex + integwinsize, waveform, Down, integwinsize);
+systolicIndex = FixIndex(footIndex + integwinsize, bpwaveform, Down, integwinsize);
 [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, fs, footIndex, systolicIndex );  
 
 if verbose
     Colors = get(gca, 'ColorOrder');
-    time = (0: length(waveform) - 1) ./ fs;
-    newTime = (0: length(waveformDDPlus) - 1) ./ newFs;
-    figure
-    axs(1) = subplot(4, 1, 1); hold on;
-    plot(time, waveform);
-    plot(time(footIndex), waveform(footIndex),'<','color', Colors(4,:), 'markerfacecolor',Colors(4,:))
-    plot(newTime(systolicIndex), waveform(systolicIndex),'^','color', Colors(5,:), 'markerfacecolor',Colors(5,:))
-    plot(newTime(notchIndex), waveform(notchIndex),'^','color', Colors(6,:), 'markerfacecolor',Colors(6,:))
-    plot(newTime(dicroticIndex), waveform(dicroticIndex),'^','color', Colors(7,:), 'markerfacecolor',Colors(7,:))
+    axs(1) = subplot(2, 1, 1);
+    hold on;
+    plot(origtime, origwaveform);
+    plot(time(footIndex), bpwaveform(footIndex),         '<', 'color', Colors(4,:), 'markerfacecolor', Colors(4,:))
+    plot(time(systolicIndex), bpwaveform(systolicIndex), '^', 'color', Colors(5,:), 'markerfacecolor', Colors(5,:))
+    plot(time(notchIndex), bpwaveform(notchIndex),       '^', 'color', Colors(6,:), 'markerfacecolor', Colors(6,:))
+    plot(time(dicroticIndex), bpwaveform(dicroticIndex), '^', 'color', Colors(7,:), 'markerfacecolor', Colors(7,:))
     legend({'Waveform','Foot','Systole', 'Notch', 'Dicrotic Peak'},'box','off')
 
-
-    axs(2) = subplot(4, 1, 2);
+    axs(2) = subplot(2, 1, 2);
     hold on;
-    plot(newTime, waveformDDPlus./max(waveformDDPlus));
-    plot(newTime, BP_integral./max(BP_integral));
-    plot(newTime, threshold./max(threshold));
-    plot(newTime, zoneOfInterest);
+    plot(time, waveformDDPlus./max(waveformDDPlus));
+    plot(time, BP_integral./max(BP_integral));
+    plot(time, threshold./max(threshold));
+    plot(time, zoneOfInterest);
     legend({'2nd Derivative','Integral', 'Threshold', 'ZOI'}, 'box','off');
-
-    axs(3) = subplot(4, 1, 3);
-
-    axs(4) = subplot(4, 1, 4);
 
     linkaxes(axs, 'x')
 end
