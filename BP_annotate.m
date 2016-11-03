@@ -1,32 +1,80 @@
-function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( inWaveform, inFs, verbose )
+function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( inWaveform, inFs, verbose )
+    
     global Fs;
     Fs = 200;
-
-    [bpwaveform, time, origtime] = BP_resample(inWaveform, inFs);
-    bpwaveform = BP_lowpass(bpwaveform);
-
-    [ waveformDDPlus, waveformDD ] = doubleDerive(bpwaveform );
-
     integwinsize = floor(Fs / 4);
     threswinsize = floor(Fs * 3);
+    
+    disp('Annotating blood pressure...');
+    inWaveform = inWaveform(:);
+    [bpwaveform, time, origtime] = BP_resample(inWaveform, inFs);
+    bpwaveform = BP_lowpass(bpwaveform);
+    [ waveformDDPlus, waveformDD ] = doubleDerive(bpwaveform );
+      
+    %Deal with very large data sets
+    sizeLimit = 3*10^5;
+    if length(bpwaveform) > sizeLimit
+        %Deal with very large data sets
+        fprintf('     Data set exceeds %d size limit, performing sub-windowing.',sizeLimit)
+        BP_integral = zeros(size(bpwaveform));
+        threshold = zeros(size(bpwaveform));
+        
+        numSubParts = ceil(length(bpwaveform)/sizeLimit);
+        overlap = round( ( numSubParts * sizeLimit - length(bpwaveform) ) / (numSubParts - 1) );
+%         subParts = struct;
+%         subVerbose = 0;
+%         footIndex = [];
+%         systolicIndex = [];
+%         notchIndex = [];
+%         dicroticIndex = [];
+        for i = 1 : numSubParts
+            fprintf('.')
+            Start = ( (i-1) * sizeLimit ) - (i-1) * overlap + 1;
+            End = min( Start + sizeLimit - 1, length(bpwaveform));
+            subIntegralWindow = rollingWindow(waveformDDPlus(Start : End), integwinsize);
+            subIntegral = winsum(subIntegralWindow);
+            subIntegral = circshift(subIntegral, -floor(integwinsize / 2), 2);
+            
+            subThresholdWindow = rollingWindow(subIntegral, threswinsize);
+            subThreshold = winmean(subThresholdWindow, 1.5);
+        
+        
+            BP_integral(Start + overlap : End) = subIntegral(1+overlap : end);
+            threshold(Start + overlap : End) = subThreshold(1+overlap : end);
+            if i > 1
+                BP_integral(Start : Start + overlap) = mean([BP_integral(Start : Start + overlap); subIntegral(1 : 1+ overlap)]);
+                threshold(Start : Start + overlap) = mean([threshold(Start : Start + overlap); subThreshold(1 : 1+ overlap)]);
+            end
+%             [ subFootIndex, subSystolicIndex, subNotchIndex, subDicroticIndex ] = BP_annotate( bpwaveform(Start : End), Fs, subVerbose );
+%             footIndex = unique([footIndex, subFootIndex + Start - 1]);
+%             systolicIndex = unique([systolicIndex, subSystolicIndex + Start - 1]);
+%             notchIndex = unique([notchIndex, subNotchIndex + Start - 1]);
+%             dicroticIndex = unique([dicroticIndex, subDicroticIndex + Start - 1]);
+        end
+        fprintf('\n')
+    else
 
-    % Moving sum to increase SNR
-    integralWindow = rollingWindow(waveformDDPlus, integwinsize);
-    BP_integral = winsum(integralWindow);
-    % Center the integral
-    BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
+        % Moving sum to increase SNR
+        integralWindow = rollingWindow(waveformDDPlus, integwinsize);
+        BP_integral = winsum(integralWindow);
+        % Center the integral
+        BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
 
-    thresholdWindow = rollingWindow(BP_integral, threswinsize);
-    threshold = winmean(thresholdWindow, 1.5);
-
+        thresholdWindow = rollingWindow(BP_integral, threswinsize);
+        threshold = winmean(thresholdWindow, 1.5);
+    end
+    
     zoneOfInterest =  BP_integral > threshold ;
     footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
 
-    Down = 0;
-    systolicIndex = FixIndex(footIndex + integwinsize, bpwaveform, Down, integwinsize);
+    Up = 1;
+    Down = ~Up;
+    systolicIndex = FixIndex(footIndex + floor(integwinsize/2), bpwaveform, Down, floor(integwinsize/2));
     [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, footIndex, systolicIndex );  
+        
 
     if verbose
+        figure;
         Colors = get(gca, 'ColorOrder');
         axs(1) = subplot(2, 1, 1);
         hold on;
@@ -48,6 +96,7 @@ function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( inWaveform, inF
 
         linkaxes(axs, 'x')
     end
+    disp('Done.');
 end
 
 function [ filtwaveform ] = BP_lowpass( waveform )
@@ -68,7 +117,7 @@ function [ newWaveform, newx, oldx ] = BP_resample( waveform, inFs )
     %BP_RESAMPLE Resample to 200 Hz
     global Fs;
 
-    duration = length(waveform) / inFs;
+    duration = length(waveform) ./ inFs;
 
     oldx = linspace(0, duration, length(waveform));
     newx = linspace(0, duration, Fs * duration);
