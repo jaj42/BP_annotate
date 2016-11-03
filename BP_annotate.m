@@ -10,7 +10,6 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( 
     [bpwaveform, time, origtime] = BP_resample(inWaveform, inFs);
     bpwaveform = BP_lowpass(bpwaveform);
     [ waveformDDPlus, waveformDD ] = doubleDerive(bpwaveform );
-      
     %Deal with very large data sets
     sizeLimit = 3*10^5;
     if length(bpwaveform) > sizeLimit
@@ -67,11 +66,10 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( 
     zoneOfInterest =  BP_integral > threshold ;
     footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
 
-    Up = 1;
-    Down = ~Up;
+    Down = 1; Up = ~Down;
     systolicIndex = FixIndex(footIndex + floor(integwinsize/2), bpwaveform, Down, floor(integwinsize/2));
     [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, footIndex, systolicIndex );  
-        
+
 
     if verbose
         figure;
@@ -113,12 +111,10 @@ function [ filtwaveform ] = BP_lowpass( waveform )
     filtwaveform = filtwaveform(1 : length(waveform));
 end
 
-function [ newWaveform, newx, oldx ] = BP_resample( waveform, inFs )
+function [ newWaveform, newx, oldx ] = BP_resample( waveform, origFs )
     %BP_RESAMPLE Resample to 200 Hz
     global Fs;
-
-    duration = length(waveform) ./ inFs;
-
+    duration = length(waveform) / origFs;
     oldx = linspace(0, duration, length(waveform));
     newx = linspace(0, duration, Fs * duration);
 
@@ -133,8 +129,8 @@ function [ waveformDDPlus, waveformDD ] = doubleDerive( waveform )
     waveformDD = [waveformDD NaN];
 
     %Low-pass filter to remove noise (assumes fs = 200)
-    %waveformD  = BP_Lowpass(waveformD);
-    %waveformDD = BP_Lowpass(waveformDD);
+    %waveformD  = BP_lowpass(waveformD);
+    waveformDD = BP_lowpass(waveformDD);
 
     %Perform the switch for positive and negative first-derivative values
     waveformDDPlus = waveformDD .* (waveformD > 0 & waveformDD > 0);
@@ -213,13 +209,13 @@ function [ rwin ] = rollingWindow( vector, winsize )
     end
 end
 
-function [ res ] = winmean( rwin, scale )
+function [ res ] = winquant( rwin, quant )
     shape = size(rwin);
     vecsize = shape(2);
     res = zeros(1, vecsize);
-    for i = 1:vecsize
+    parfor i = 1:vecsize
         %res(i) = quantile(rwin(:,i), quant);
-        res(i) = scale * mean(rwin(:,i));
+        res(i) = 1.5 * mean(rwin(:,i));
     end
 end
 
@@ -227,7 +223,7 @@ function [ res ] = winsum( rwin )
     shape = size(rwin);
     vecsize = shape(2);
     res = zeros(1, vecsize);
-    for i = 1:vecsize
+    parfor i = 1:vecsize
         res(i) = sum(rwin(:,i));
     end
 end
