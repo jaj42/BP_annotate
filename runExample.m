@@ -1,7 +1,7 @@
 %Runs an example of BP_annotate
 testPressures = struct;
 Dir = {'/Volumes/Data/alexandrel/BP_annotate/'};
-Files = dir(fullfile(Dir{1}, '*.mat'));
+Files = dir(fullfile(Dir{1}, 'Fs*.mat'));
 Files = {Files.name};
 disp('Loading files...')
 for i = 1 : length(Files)
@@ -14,14 +14,12 @@ disp('Done.')
 verbose = 1;
 %%
 Timings = zeros(length(fields(testPressures)),2);
-for i = 1: length(fields(testPressures))
+for i = 12 %: length(fields(testPressures))
     i
     Timings(i,1) = length(testPressures.(['P',num2str(i)]).waveform)/testPressures.(['P',num2str(i)]).fs/60;
     tic
     [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( testPressures.(['P',num2str(i)]).waveform, testPressures.(['P',num2str(i)]).fs, verbose );
     Timings(i,2) = toc;
-%     pause
-    close gcf
 end
 %%
 figure(1); clf; plot(Timings(:,1),Timings(:,2),'o')

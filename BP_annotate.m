@@ -1,31 +1,72 @@
-function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( inWaveform, inFs, verbose )
-    
+function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform ] = BP_annotate( inWaveform, inFs, verbose )
+%% function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform ] = BP_annotate( inWaveform, inFs, verbose )
+% Implementation of a feature detection algorithm for arterial blood
+% pressure in humans. The foot of the wave, systolic peak, dicrotic notch,
+% and dicrotic peaks are identified. The blood pressure time series is
+% always resampled at 200 Hz to allow standardisation.
+%
+% The technique was largely inpired by the derivatives and thresholds 
+% described in Pan-Tompkins:
+% Pan, Jiapu, and Willis J. Tompkins. "A real-time QRS detection algorithm." 
+% IEEE transactions on biomedical engineering 3 (1985): 230-236.
+
+%% Inputs
+% inWaveform : countinuous arterial blood pressure time-series
+% inFs : sampling frequency of the time-series
+% verbose : boolean, should be true if figures are wanted
+%% Outputs
+% footIndex : index of the foot of each systolic wave
+% systolicIndex : index of each sytolic peak
+% notchIndex : index of each dicrotic notch
+% dicroticIndex : index of each dicrotic peak
+% time : time vector of the resampled 200 Hz time-series
+% bpwaveform : resampled filtered 200 Hz time-series
+%
+%% Methods
+
+%% Foot index
+% The foot index is defined as the point where the second derivative of 
+% the time-series is the highest in each interval where a moving average
+% of the second derivative was bigger than a adaptative threshold. This 
+% criterion was prefered over others because of its rubustness.
+%% Systolic peak index
+% The systolic peak is defined as the maximum of the waveform following 
+% the foot index, relative to a window of radius 1/8 s around itself. 
+%% Dicrotic notch and peak indices
+% The dicrotic notch and peak indices were defined as the successive 
+% maximum and minimum of the second derivative of the time-series 
+% following the systolic peak, relative to a window of radius RR/5 s 
+% around itself. (RR is the median heartbeat interval computed form the 
+% foot indices). These indices are moved to waveform minima and maxima if
+% these existed.
+%
+%% Authors
+% Alexandre Laurin, PhD, ?cole Polytechnique, France, alexandre.laurin@inria.fr
+% Jona Joachim, MD, H?pital Lariboisi?re, France, jona.joachim@inria.fr
+%%
     global Fs;
     Fs = 200;
     integwinsize = floor(Fs / 4);
     threswinsize = floor(Fs * 3);
     
-    disp('Annotating blood pressure...');
+    disp('Annotating blood pressure...')
     inWaveform = inWaveform(:);
+    % resample the time-series to allow standardisation
     [bpwaveform, time, origtime] = BP_resample(inWaveform, inFs);
+    % filter
     bpwaveform = BP_lowpass(bpwaveform);
-    [ waveformDDPlus, waveformDD ] = doubleDerive(bpwaveform );
+    % derivatives
+    [ waveformDDPlus, waveformDD, waveformD ] = doubleDerive(bpwaveform );
     %Deal with very large data sets
     sizeLimit = 3*10^5;
     if length(bpwaveform) > sizeLimit
-        %Deal with very large data sets
+        
         fprintf('     Data set exceeds %d size limit, performing sub-windowing.',sizeLimit)
         BP_integral = zeros(size(bpwaveform));
         threshold = zeros(size(bpwaveform));
         
         numSubParts = ceil(length(bpwaveform)/sizeLimit);
         overlap = round( ( numSubParts * sizeLimit - length(bpwaveform) ) / (numSubParts - 1) );
-%         subParts = struct;
-%         subVerbose = 0;
-%         footIndex = [];
-%         systolicIndex = [];
-%         notchIndex = [];
-%         dicroticIndex = [];
         for i = 1 : numSubParts
             fprintf('.')
             Start = ( (i-1) * sizeLimit ) - (i-1) * overlap + 1;
@@ -43,12 +84,10 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( 
             if i > 1
                 BP_integral(Start : Start + overlap) = mean([BP_integral(Start : Start + overlap); subIntegral(1 : 1+ overlap)]);
                 threshold(Start : Start + overlap) = mean([threshold(Start : Start + overlap); subThreshold(1 : 1+ overlap)]);
+            else
+                BP_integral(Start : Start + overlap) = subIntegral(1 : 1+ overlap);
+                threshold(Start : Start + overlap) = subThreshold(1 : 1+ overlap);
             end
-%             [ subFootIndex, subSystolicIndex, subNotchIndex, subDicroticIndex ] = BP_annotate( bpwaveform(Start : End), Fs, subVerbose );
-%             footIndex = unique([footIndex, subFootIndex + Start - 1]);
-%             systolicIndex = unique([systolicIndex, subSystolicIndex + Start - 1]);
-%             notchIndex = unique([notchIndex, subNotchIndex + Start - 1]);
-%             dicroticIndex = unique([dicroticIndex, subDicroticIndex + Start - 1]);
         end
         fprintf('\n')
     else
@@ -63,12 +102,13 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( 
         threshold = winmean(thresholdWindow, 1.5);
     end
     
+    % each zone of interest corresponds to a heart beat
     zoneOfInterest =  BP_integral > threshold ;
     footIndex = getFootIndex( waveformDDPlus, zoneOfInterest );
 
     Down = 1; Up = ~Down;
-    systolicIndex = FixIndex(footIndex + floor(integwinsize/2), bpwaveform, Down, floor(integwinsize/2));
-    [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, footIndex, systolicIndex );  
+    systolicIndex = FixIndex(footIndex + floor(integwinsize/2), bpwaveform, Up, floor(integwinsize/2));
+    [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, waveformD, bpwaveform, footIndex, systolicIndex );  
 
 
     if verbose
@@ -86,7 +126,7 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( 
 
         axs(2) = subplot(2, 1, 2);
         hold on;
-        plot(time, waveformDDPlus);
+        plot(time, waveformDD);
         plot(time, BP_integral);
         plot(time, threshold);
         plot(time, zoneOfInterest .* .1);
@@ -121,15 +161,12 @@ function [ newWaveform, newx, oldx ] = BP_resample( waveform, origFs )
     newWaveform = interp1(oldx, waveform, newx, 'pchip');
 end
 
-function [ waveformDDPlus, waveformDD ] = doubleDerive( waveform )
+function [ waveformDDPlus, waveformDD, waveformD ] = doubleDerive( waveform )
     waveformD = diff(waveform);
     waveformD = [waveformD NaN];
 
     waveformDD = diff(waveformD);
     waveformDD = [waveformDD NaN];
-
-    %Low-pass filter to remove noise (assumes fs = 200)
-    %waveformD  = BP_lowpass(waveformD);
     waveformDD = BP_lowpass(waveformDD);
 
     %Perform the switch for positive and negative first-derivative values
@@ -137,29 +174,34 @@ function [ waveformDDPlus, waveformDD ] = doubleDerive( waveform )
     waveformDDPlus = waveformDDPlus .^ 2;
 end
 
+
 function [fixedIndex] = FixIndex(BrokeIndex, BrokeSCG, Down, minWavelength)
+    % follows a slope either up or down in a given window until an
+    % extremum is attained
     fixedIndex = BrokeIndex;
+    Radius = round(minWavelength/4);
     for N = 1:length(BrokeIndex)
-       if BrokeIndex+2 < length(BrokeSCG)
+       if BrokeIndex+round(minWavelength) < length(BrokeSCG)
            OldIndex = BrokeIndex(N);
            if Down
-               TempSCG = BrokeSCG(max(OldIndex-round(minWavelength/4),1):min(OldIndex+round(minWavelength/4),end));
+               TempSCG = BrokeSCG(max(OldIndex - Radius, 1):min(OldIndex + Radius, end));
                [~, NewIndex] = min(TempSCG);
-               NewIndex = NewIndex + OldIndex - round(minWavelength/4) -1;
+               NewIndex = NewIndex + OldIndex - Radius - 1;
                while ~(OldIndex==NewIndex)
                    OldIndex = NewIndex;
-                   TempSCG = BrokeSCG(max(OldIndex-10,1):min(OldIndex+10,end));
+                   TempSCG = BrokeSCG(max(OldIndex - Radius, 1):min(OldIndex + Radius,end));
                    [~, NewIndex] = min(TempSCG);
-                   NewIndex = NewIndex + max(OldIndex-10,1) -1;
+                   NewIndex = NewIndex + max(OldIndex - Radius, 1) -1;
                end
            else
-               [~, NewIndex] = max(BrokeSCG(max(OldIndex-round(minWavelength/4),1):min(OldIndex+round(minWavelength/4),length(BrokeSCG))));
-               NewIndex = NewIndex + OldIndex - round(minWavelength/4) -1;
+               TempSCG = BrokeSCG(max(OldIndex - Radius, 1):min(OldIndex + Radius, end));
+               [~, NewIndex] = max(TempSCG);
+               NewIndex = NewIndex + OldIndex - Radius - 1;
                while ~(OldIndex==NewIndex)
                    OldIndex = NewIndex;
-                   TempSCG = BrokeSCG(max(OldIndex-10,1):min(OldIndex+10,end));
+                   TempSCG = BrokeSCG(max(OldIndex - Radius, 1):min(OldIndex + Radius, end));
                    [~, NewIndex] = max(TempSCG);
-                   NewIndex = NewIndex + max(OldIndex-10,1) -1;
+                   NewIndex = NewIndex + max(OldIndex - Radius, 1) -1;
                end
            end
            Index = NewIndex;
@@ -188,13 +230,27 @@ function [ footIndex ] = getFootIndex( waveformDDPlus, zoneOfInterest )
     end
 end
 
-function [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, footIndex, systolicIndex )
+function [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, waveformD, bpwaveform, footIndex, systolicIndex )
     global Fs;
     RR = median(footIndex(2:end) - footIndex(1:end-1)) ./ Fs;% This assumes steady heartrate
-    Down = 1;
-    minWavelength = round(RR/4 .* Fs);
-    notchIndex = FixIndex(systolicIndex + minWavelength, waveformDD, ~Down, minWavelength);
+    Down = 1; Up = ~Down;
+    minWavelength = round(RR/5 .* Fs);
+    notchIndex = FixIndex(systolicIndex + minWavelength, waveformDD, Up, minWavelength);
     dicroticIndex = FixIndex(notchIndex + round(0.5*minWavelength), waveformDD, Down, minWavelength);
+    
+    % if a local minimum and maximum exist, move the dicrotic indices to
+    % these
+    for i = 1 : length(systolicIndex)
+        Start = systolicIndex(i) + round(minWavelength/4);
+        End = min([dicroticIndex(i) + round(minWavelength*5/3), length(waveformD)]);
+        ZOI = waveformD(Start : End);
+        ZOI = ZOI(2:end).*ZOI(1:end-1);
+        extrema = find(ZOI<0);
+        if length(extrema) >=2
+            notchIndex(i) = FixIndex(notchIndex(i), bpwaveform, Down, 4);
+            dicroticIndex(i) = FixIndex(notchIndex(i) + round(0.5*minWavelength), bpwaveform, Up, 4);
+        end
+    end
 end
 
 
@@ -209,13 +265,12 @@ function [ rwin ] = rollingWindow( vector, winsize )
     end
 end
 
-function [ res ] = winquant( rwin, quant )
+function [ res ] = winmean( rwin, quant )
     shape = size(rwin);
     vecsize = shape(2);
     res = zeros(1, vecsize);
     parfor i = 1:vecsize
-        %res(i) = quantile(rwin(:,i), quant);
-        res(i) = 1.5 * mean(rwin(:,i));
+        res(i) = quant * mean(rwin(:,i));
     end
 end
 
