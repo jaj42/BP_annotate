@@ -1,34 +1,33 @@
 function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform ] = BP_annotate( inWaveform, inFs, verbose )
-%% function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform ] = BP_annotate( inWaveform, inFs, verbose )
+%% [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform ] = BP_annotate( inWaveform, inFs, verbose )
 % Implementation of a feature detection algorithm for arterial blood
 % pressure in humans. The foot of the wave, systolic peak, dicrotic notch,
 % and dicrotic peaks are identified. The blood pressure time series is
 % always resampled at 200 Hz to allow standardisation.
 %
-% The technique was largely inpired by the derivatives and thresholds 
+% The technique was largely inspired by the derivatives and thresholds 
 % described in Pan-Tompkins:
 % Pan, Jiapu, and Willis J. Tompkins. "A real-time QRS detection algorithm." 
 % IEEE transactions on biomedical engineering 3 (1985): 230-236.
-
+%
 %% Inputs
 % inWaveform : countinuous arterial blood pressure time-series
-% inFs : sampling frequency of the time-series
+% inFs : sampling frequency (Hz) of the time-series
 % verbose : boolean, should be true if figures are wanted
 %% Outputs
 % footIndex : index of the foot of each systolic wave
 % systolicIndex : index of each sytolic peak
 % notchIndex : index of each dicrotic notch
 % dicroticIndex : index of each dicrotic peak
-% time : time vector of the resampled 200 Hz time-series
+% time : time vector (s) of the resampled 200 Hz time-series
 % bpwaveform : resampled filtered 200 Hz time-series
 %
 %% Methods
-
 %% Foot index
 % The foot index is defined as the point where the second derivative of 
 % the time-series is the highest in each interval where a moving average
 % of the second derivative was bigger than a adaptative threshold. This 
-% criterion was prefered over others because of its rubustness.
+% criterion was preferred over others because of its robustness.
 %% Systolic peak index
 % The systolic peak is defined as the maximum of the waveform following 
 % the foot index, relative to a window of radius 1/8 s around itself. 
@@ -123,6 +122,7 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
         plot(time(notchIndex), bpwaveform(notchIndex),       '^', 'color', Colors(6,:), 'markerfacecolor', Colors(6,:))
         plot(time(dicroticIndex), bpwaveform(dicroticIndex), '^', 'color', Colors(7,:), 'markerfacecolor', Colors(7,:))
         legend({'Filtered','Waveform','Foot','Systole', 'Notch', 'Dicrotic Peak'},'box','off')
+        ylabel('arterial pressure')
 
         axs(2) = subplot(2, 1, 2);
         hold on;
@@ -131,7 +131,7 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
         plot(time, threshold);
         plot(time, zoneOfInterest .* .1);
         legend({'2nd Derivative','Integral', 'Threshold', 'ZOI'}, 'box','off');
-
+        xlabel('time (s)')
         linkaxes(axs, 'x')
     end
     disp('Done.');
@@ -248,7 +248,7 @@ function [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, waveformD
         extrema = find(ZOI<0);
         if length(extrema) >=2
             notchIndex(i) = FixIndex(notchIndex(i), bpwaveform, Down, 4);
-            dicroticIndex(i) = FixIndex(notchIndex(i) + round(0.5*minWavelength), bpwaveform, Up, 4);
+            dicroticIndex(i) = FixIndex(min(notchIndex(i) + round(0.5*minWavelength), length(bpwaveform)), bpwaveform, Up, 4);
         end
     end
 end
