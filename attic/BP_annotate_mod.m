@@ -1,4 +1,4 @@
-function [ footIndex, systolicIndex, notchIndex ] = BP_annotate( waveform, fs, verbose )
+function [ footIndex, systolicIndex, notchIndex ] = BP_annotate_mod( waveform, fs, verbose )
 newFs = 200;
 origwaveform = waveform;
 
