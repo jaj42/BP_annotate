@@ -96,6 +96,14 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
             subIntegralWindow = rollingWindow(waveformDDPlus(Start : End), integwinsize);
             subIntegral = winsum(subIntegralWindow);
             subIntegral = circshift(subIntegral, -floor(integwinsize / 2), 2);
+        
+            % implementation of Sun et al. paper A Signal Abnormality Index for
+            % Arterial Blood Pressure Waveform
+            if strcmp(Units, 'mmHg')
+                % negative slope for noise detection
+                subNoiseWindow = rollingWindow(waveformD(Start : End), floor(integwinsize/2));
+                subNoiseLevel = winsum(subNoiseWindow);
+            end
             
             subThresholdWindow = rollingWindow(subIntegral, threswinsize);
             subThreshold = winmean(subThresholdWindow, 1.5);
@@ -103,12 +111,22 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
         
             BP_integral(Start + overlap : End) = subIntegral(1+overlap : end);
             threshold(Start + overlap : End) = subThreshold(1+overlap : end);
+            if strcmp(Units, 'mmHg')
+                noiseLevel(Start + overlap : End) = subNoiseLevel(1+overlap : end);
+            end
+            
             if i > 1
                 BP_integral(Start : Start + overlap) = mean([BP_integral(Start : Start + overlap); subIntegral(1 : 1+ overlap)]);
                 threshold(Start : Start + overlap) = mean([threshold(Start : Start + overlap); subThreshold(1 : 1+ overlap)]);
+                if strcmp(Units, 'mmHg')
+                    noiseLevel(Start : Start + overlap) = mean([noiseLevel(Start : Start + overlap); subNoiseLevel(1 : 1+ overlap)]);
+                end
             else
                 BP_integral(Start : Start + overlap) = subIntegral(1 : 1+ overlap);
                 threshold(Start : Start + overlap) = subThreshold(1 : 1+ overlap);
+                if strcmp(Units, 'mmHg')
+                    noiseLevel(Start : Start + overlap) = subNoiseLevel(1 : 1+ overlap);
+                end
             end
         end
         fprintf('\n')
@@ -117,6 +135,15 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
         % Moving sum to increase SNR
         integralWindow = rollingWindow(waveformDDPlus, integwinsize);
         BP_integral = winsum(integralWindow);
+        
+        % implementation of Sun et al. paper A Signal Abnormality Index for
+        % Arterial Blood Pressure Waveform
+        if strcmp(Units, 'mmHg')
+            % negative slope for noise detection
+            noiseWindow = rollingWindow(waveformD, floor(integwinsize/2));
+            noiseLevel = winsum(noiseWindow);
+        end
+        
         % Center the integral
         BP_integral = circshift(BP_integral, -floor(integwinsize / 2), 2);
 
@@ -133,7 +160,8 @@ function [ footIndex, systolicIndex, notchIndex, dicroticIndex, time, bpwaveform
     end
     
     % each zone of interest corresponds to a heart beat
-    zoneOfInterest =  BP_integral > threshold ;
+    BP_integral(isnan(BP_integral)) = 0;
+    zoneOfInterest =  BP_integral > threshold;
     
     % implementation of Sun et al. paper A Signal Abnormality Index for
     % Arterial Blood Pressure Waveform
