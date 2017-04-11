@@ -1,10 +1,8 @@
-function [ newWaveform, newx, oldx ] = BP_resample( waveform, fs )
-%BP_RESAMPLE Resample to 200 Hz
-newfs = 200;
+function [ newWaveform, newx, oldx ] = BP_resample( waveform, origFs )
+    %BP_RESAMPLE Resample to 200 Hz
+    Fs = 200;
+    duration = length(waveform) / origFs;
+    oldx = linspace(0, duration, length(waveform));
+    newx = linspace(0, duration, Fs * duration);
 
-duration = length(waveform) / fs;
-
-oldx = linspace(0, duration, length(waveform));
-newx = linspace(0, duration, newfs * duration);
-
-newWaveform = interp1(oldx, waveform, newx, 'pchip');
+    newWaveform = interp1(oldx, waveform, newx, 'pchip');

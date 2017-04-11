@@ -351,9 +351,12 @@ function [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, waveformD
     eyeBallSignal = bpwaveform - straightLines;
     eyeBallSignal(footIndex(end) : end) = waveformDD(footIndex(end) : end);
     
-    notchIndex = FixIndex(systolicIndex + round(minWavelength), eyeBallSignal, Down, minWavelength/4);
+    notchIndex = FixIndex(systolicIndex + round(0.5*minWavelength), eyeBallSignal, Down, minWavelength/4);
     dicroticIndex = FixIndex(notchIndex + round(0.25*minWavelength), waveformDD, Down, round(0.25*minWavelength));
     systolicIndex = systolicIndex(1:length(dicroticIndex));
+    
+%     figure(69); clf; plot(bpwaveform); hold on;
+%     plot(notchIndex,bpwaveform(notchIndex),'*')
     
     % if a local minimum and maximum exist, move the dicrotic indices to
     % these
@@ -368,6 +371,8 @@ function [ dicroticIndex, notchIndex ] = getDicroticIndex( waveformDD, waveformD
             dicroticIndex(i) = FixIndex(min(notchIndex(i) + round(0.25*minWavelength), length(bpwaveform)), bpwaveform, Up, 4);
         end
     end
+%     plot(notchIndex,bpwaveform(notchIndex),'*')
+%     pause
 end
 
 
