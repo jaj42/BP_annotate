@@ -1,27 +1,8 @@
-%Runs an example of BP_annotate
-testPressures = struct;
-Dir = {'/Volumes/Data/alexandrel/BP_annotate/'};
-Files = dir(fullfile(Dir{1}, 'Fs*.mat'));
-Files = {Files.name};
-disp('Loading files...')
-for i = 1 : length(Files)
-    testPressures.(['P',num2str(i)]).waveform = load([Dir{1},Files{i}]);
-    Field = fields(testPressures.(['P',num2str(i)]).waveform);
-    testPressures.(['P',num2str(i)]).waveform = testPressures.(['P',num2str(i)]).waveform.(Field{1});
-    testPressures.(['P',num2str(i)]).fs = str2double(Files{i}(3:regexp(Files{i},'Hz')-1));
-end
-disp('Done.')
-verbose = 1;
-%%
-Timings = zeros(length(fields(testPressures)),2);
-for i = 12 %: length(fields(testPressures))
-    i
-    Timings(i,1) = length(testPressures.(['P',num2str(i)]).waveform)/testPressures.(['P',num2str(i)]).fs/60;
-    tic
-    [ footIndex, systolicIndex, notchIndex, dicroticIndex ] = BP_annotate( testPressures.(['P',num2str(i)]).waveform, testPressures.(['P',num2str(i)]).fs, verbose );
-    Timings(i,2) = toc;
-end
-%%
-figure(1); clf; plot(Timings(:,1),Timings(:,2),'o')
-xlabel('length of record (min)')
-ylabel('computing time (s)')
+%Runs 2 examples of BP_annotate
+signal1 = load('exampleWaveform_1kHz.mat');
+[ footIndex1, systolicIndex1, notchIndex1, dicroticIndex1 ] = ...
+    BP_annotate( signal1.waveform, 1000, 1, 'mmHg', 1);
+
+signal2 = load('exampleWaveform_200Hz.mat');
+[ footIndex2, systolicIndex2, notchIndex2, dicroticIndex2 ] = ...
+    BP_annotate( signal2.waveform, 200, 1, 'other', 1);
