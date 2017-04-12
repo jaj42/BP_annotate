@@ -4,9 +4,7 @@ function [ waveformDDPlus, waveformDD, waveformD ] = doubleDerive( waveform )
 
     waveformDD = diff(waveformD);
     waveformDD = [waveformDD NaN];
-
-    %Low-pass filter to remove noise (assumes fs = 200)
-    waveformDD = BP_Lowpass(waveformDD);
+    waveformDD = BP_lowpass(waveformDD);
 
     %Perform the switch for positive and negative first-derivative values
     waveformDDPlus = waveformDD .* (waveformD > 0 & waveformDD > 0);
